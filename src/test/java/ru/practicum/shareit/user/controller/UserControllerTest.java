@@ -73,7 +73,7 @@ class UserControllerTest {
 
     @Test
     void shouldThrowExceptionWhenDeleteNonExistentUser() {
-        assertThrows(NotFoundException.class ,() -> userController.delete(999L));
+        assertThrows(NotFoundException.class,() -> userController.delete(999L));
     }
 
     @Test
@@ -106,6 +106,6 @@ class UserControllerTest {
 
     @Test
     void shouldThrowExceptionWhenFindNonExistentUser() {
-        assertThrows(NotFoundException.class ,() -> userController.getUser(999L));
+        assertThrows(NotFoundException.class,() -> userController.getUser(999L));
     }
 }
