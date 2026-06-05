@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
+import ru.practicum.shareit.exception.ConditionsNotMetException;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.user.dto.UserDto;
 
@@ -40,11 +41,10 @@ class UserControllerTest {
     }
 
     @Test
-    void shouldFallsValidateWhenEmailIsBlank() {
+    void shouldThrowExceptionWhenEmailIsBlank() {
         UserDto user = createDefaultUser().email(" ").build();
 
-        var violations = validator.validate(user);
-        assertFalse(violations.isEmpty());
+        assertThrows(ConditionsNotMetException.class, () -> userController.create(user));
     }
 
     @Test
@@ -56,11 +56,10 @@ class UserControllerTest {
     }
 
     @Test
-    void shouldFallsValidateWhenNameIsBlank() {
+    void shouldThrowExceptionWhenNameIsBlank() {
         UserDto user = createDefaultUser().name(" ").build();
 
-        var violations = validator.validate(user);
-        assertFalse(violations.isEmpty());
+        assertThrows(ConditionsNotMetException.class, () -> userController.create(user));
     }
 
     @Test
@@ -73,7 +72,7 @@ class UserControllerTest {
 
     @Test
     void shouldThrowExceptionWhenDeleteNonExistentUser() {
-        assertThrows(NotFoundException.class,() -> userController.delete(999L));
+        assertThrows(NotFoundException.class, () -> userController.delete(999L));
     }
 
     @Test
@@ -106,6 +105,6 @@ class UserControllerTest {
 
     @Test
     void shouldThrowExceptionWhenFindNonExistentUser() {
-        assertThrows(NotFoundException.class,() -> userController.getUser(999L));
+        assertThrows(NotFoundException.class, () -> userController.getUser(999L));
     }
 }
