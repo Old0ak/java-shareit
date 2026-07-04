@@ -3,6 +3,7 @@ package ru.practicum.shareit;
 import jakarta.validation.Validator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.booking.controller.BookingController;
 import ru.practicum.shareit.booking.dto.BookingPostDto;
@@ -17,6 +18,7 @@ import java.time.LocalDateTime;
 
 @SpringBootTest
 @Transactional
+@ActiveProfiles("test")
 public abstract class BaseIntegrationTest {
 
     // Контроллеры
