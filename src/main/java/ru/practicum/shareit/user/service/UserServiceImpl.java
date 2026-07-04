@@ -3,14 +3,14 @@ package ru.practicum.shareit.user.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
+import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.exception.ConditionsNotMetException;
-import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.exception.ConflictException;
-import ru.practicum.shareit.user.model.User;
-import ru.practicum.shareit.user.storage.UserStorage;
+import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.mapper.UserMapper;
+import ru.practicum.shareit.user.model.User;
+import ru.practicum.shareit.user.storage.UserRepository;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,28 +18,35 @@ import java.util.Optional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class UserServiceImpl implements UserService {
 
-    private final UserStorage userStorage;
+    private final UserRepository userRepository;
     private final UserMapper mapper;
 
+    @Override
+    @Transactional
     public UserDto create(UserDto userDto) {
         validateForCreate(userDto);
-
         checkEmailDuplicate(userDto.getEmail(), null);
 
         User user = mapper.toUser(userDto);
-        log.debug("Создание пользователя: id={}", user.getId());
-        return mapper.toUserDto(userStorage.create(user));
+        User savedUser = userRepository.save(user);
+        log.debug("Создание пользователя: id={}", savedUser.getId());
+        return mapper.toUserDto(savedUser);
     }
 
+    @Override
+    @Transactional
     public void delete(Long userId) {
         validateId(userId);
 
         log.debug("Удаление пользователя: id={}", userId);
-        userStorage.delete(userId);
+        userRepository.deleteById(userId);
     }
 
+    @Override
+    @Transactional
     public UserDto update(Long userId, UserDto userDto) {
         User user = getUserOrThrow(userId);
 
@@ -53,17 +60,19 @@ public class UserServiceImpl implements UserService {
         }
 
         log.debug("Обновление данных пользователя: id={}", user.getId());
-        User updatedUser = userStorage.update(user);
+        User updatedUser = userRepository.save(user);
         return mapper.toUserDto(updatedUser);
     }
 
+    @Override
     public List<UserDto> findAll() {
         log.debug("Получение списка всех пользователей");
-        return userStorage.findAll().stream()
+        return userRepository.findAll().stream()
                 .map(mapper::toUserDto)
                 .toList();
     }
 
+    @Override
     public UserDto findById(Long userId) {
         log.debug("Получение пользователя по id={}", userId);
         User user = getUserOrThrow(userId);
@@ -71,9 +80,13 @@ public class UserServiceImpl implements UserService {
     }
 
     private void checkEmailDuplicate(String email, Long excludeUserId) {
-        boolean exists = userStorage.findAll().stream()
-                .anyMatch(user -> user.getEmail().equalsIgnoreCase(email)
-                        && !java.util.Objects.equals(user.getId(), excludeUserId));
+        boolean exists;
+
+        if (excludeUserId == null) {
+            exists = userRepository.existsByEmailIgnoreCase(email);
+        } else {
+            exists = userRepository.existsByEmailIgnoreCaseAndIdNot(email, excludeUserId);
+        }
 
         if (exists) {
             throw new ConflictException("Пользователь с email=" + email + " уже существует");
@@ -89,13 +102,13 @@ public class UserServiceImpl implements UserService {
     }
 
     private void validateId(Long userId) {
-        if (!userStorage.existsById(userId))
+        if (!userRepository.existsById(userId))
             throw new NotFoundException("Пользователь с id = " + userId + " не найден");
 
     }
 
     private User getUserOrThrow(Long userId) {
-        return userStorage.findById(userId).orElseThrow(() ->
-                new NotFoundException("Пользователь с id = " + userId + "не найден"));
+        return userRepository.findById(userId).orElseThrow(() ->
+                new NotFoundException("Пользователь с id = " + userId + " не найден"));
     }
 }

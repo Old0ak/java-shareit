@@ -25,7 +25,7 @@ public class ErrorHandler {
     public ErrorResponse handleMethodArgumentNotValidException(final MethodArgumentNotValidException e) {
         var fieldError = e.getBindingResult().getFieldError();
         String defaultMessage = (fieldError != null) ? fieldError.getDefaultMessage() : "Ошибка валидации";
-        log.warn("Ошибка формата данных {}", defaultMessage);
+        log.warn("Ошибка формата данных: {}", defaultMessage);
         return new ErrorResponse(defaultMessage);
     }
 

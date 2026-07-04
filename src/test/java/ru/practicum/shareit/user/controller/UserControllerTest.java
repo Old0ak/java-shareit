@@ -1,33 +1,20 @@
 package ru.practicum.shareit.user.controller;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.DirtiesContext;
+import ru.practicum.shareit.BaseIntegrationTest;
 import ru.practicum.shareit.exception.ConditionsNotMetException;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.user.dto.UserDto;
-
-import jakarta.validation.Validator;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-class UserControllerTest {
+class UserControllerTest extends BaseIntegrationTest {
 
-    @Autowired
-    private UserController userController;
-    @Autowired
-    private Validator validator;
-
-    private UserDto.UserDtoBuilder createDefaultUser() {
-        return UserDto.builder()
-                .email("test@yandex.ru")
-                .name("Тестов Тест Тестович");
-    }
+    // ================
+    // ENDPOINT: create
+    // ================
 
     @Test
     void shouldCreateUserWhenDataIsValid() {
@@ -62,6 +49,10 @@ class UserControllerTest {
         assertThrows(ConditionsNotMetException.class, () -> userController.create(user));
     }
 
+    // ================
+    // ENDPOINT: delete
+    // ================
+
     @Test
     void shouldDeleteUser() {
         UserDto user = createDefaultUser().build();
@@ -74,6 +65,10 @@ class UserControllerTest {
     void shouldThrowExceptionWhenDeleteNonExistentUser() {
         assertThrows(NotFoundException.class, () -> userController.delete(999L));
     }
+
+    // =================
+    // ENDPOINT: findAll
+    // =================
 
     @Test
     void shouldFindAllUsers() {
@@ -94,6 +89,10 @@ class UserControllerTest {
         assertTrue(createdUsers.containsAll(users));
     }
 
+    // =================
+    // ENDPOINT: getUser
+    // =================
+
     @Test
     void shouldFindUserByValidId() {
         UserDto user = createDefaultUser().build();
@@ -106,5 +105,21 @@ class UserControllerTest {
     @Test
     void shouldThrowExceptionWhenFindNonExistentUser() {
         assertThrows(NotFoundException.class, () -> userController.getUser(999L));
+    }
+
+    // ================
+    // ENDPOINT: update
+    // ================
+
+    @Test
+    void shouldUpdateOnlyChangeFields() {
+        UserDto user = createDefaultUser().build();
+        UserDto createdUser = userController.create(user);
+
+        UserDto updateDto = UserDto.builder().name("Новое Имя").build();
+        UserDto updatedUser = userController.update(createdUser.getId(), updateDto);
+
+        assertEquals("Новое Имя", updatedUser.getName());
+        assertEquals(createdUser.getEmail(), updatedUser.getEmail());
     }
 }
