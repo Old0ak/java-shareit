@@ -5,6 +5,8 @@ import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Value;
 
+import java.util.List;
+
 @Value
 @Builder(toBuilder = true)
 public class ItemDto {
@@ -20,4 +22,15 @@ public class ItemDto {
     Boolean available;
 
     Long requestId;
+
+    BookingShortDto lastBooking;
+    BookingShortDto nextBooking;
+
+    List<CommentDto> comments;
+
+    @Value
+    public static class BookingShortDto {
+        Long id;
+        Long bookerId;
+    }
 }

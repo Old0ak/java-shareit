@@ -3,41 +3,59 @@ package ru.practicum.shareit.item.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import ru.practicum.shareit.booking.model.Booking;
+import ru.practicum.shareit.booking.storage.BookingRepository;
+import ru.practicum.shareit.booking.storage.BookingStatus;
 import ru.practicum.shareit.exception.ConditionsNotMetException;
 import ru.practicum.shareit.exception.NotFoundException;
+import ru.practicum.shareit.item.dto.CommentDto;
 import ru.practicum.shareit.item.dto.ItemDto;
+import ru.practicum.shareit.item.mapper.CommentMapper;
 import ru.practicum.shareit.item.mapper.ItemMapper;
+import ru.practicum.shareit.item.model.Comment;
 import ru.practicum.shareit.item.model.Item;
-import ru.practicum.shareit.item.storage.ItemStorage;
+import ru.practicum.shareit.item.storage.CommentRepository;
+import ru.practicum.shareit.item.storage.ItemRepository;
 import ru.practicum.shareit.user.model.User;
-import ru.practicum.shareit.user.storage.UserStorage;
+import ru.practicum.shareit.user.storage.UserRepository;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ItemServiceImpl implements ItemService {
 
-    private final UserStorage userStorage;
-    private final ItemStorage itemStorage;
-    private final ItemMapper mapper;
+    private final UserRepository userRepository;
+    private final ItemRepository itemRepository;
+    private final BookingRepository bookingRepository;
+    private final CommentRepository commentRepository;
+
+    private final ItemMapper itemMapper;
+    private final CommentMapper commentMapper;
 
     @Override
+    @Transactional
     public ItemDto addNewItem(Long userId, ItemDto itemDto) {
         User owner = getUserOrThrow(userId);
         validateCreateItem(itemDto);
 
-        Item item = mapper.toItem(itemDto);
+        Item item = itemMapper.toItem(itemDto);
         item.setOwner(owner);
-        log.debug("Добавление владельцем ownerId={} новой вещи name={}",
-               userId, item.getName());
-        return mapper.toItemDto(itemStorage.addNewItem(item));
+
+        log.debug("Добавление владельцем ownerId={} новой вещи name={}", userId, item.getName());
+        Item savedItem = itemRepository.save(item);
+        return itemMapper.toItemDto(savedItem);
     }
 
     @Override
+    @Transactional
     public ItemDto updateItem(Long userId, Long itemId, ItemDto itemDto) {
         Item item = getItemOrThrow(itemId);
 
@@ -53,15 +71,15 @@ public class ItemServiceImpl implements ItemService {
                 .ifPresent(item::setAvailable);
 
         log.debug("Обновление владельцем ownerId={} данных о вещи itemId={}", userId, itemId);
-        Item updatedItem = itemStorage.update(item);
-        return mapper.toItemDto(updatedItem);
+        Item updatedItem = itemRepository.save(item);
+        return itemMapper.toItemDto(updatedItem);
     }
 
     @Override
-    public ItemDto findById(Long itemId) {
-        log.debug("Получение вещи по id={}", itemId);
+    public ItemDto findById(Long userId, Long itemId) {
+        log.debug("Получение пользователем с id={} вещи по id={}", userId, itemId);
         Item item = getItemOrThrow(itemId);
-        return mapper.toItemDto(item);
+        return enrichWithBookings(item, userId);
     }
 
     @Override
@@ -69,8 +87,9 @@ public class ItemServiceImpl implements ItemService {
         validateUserId(userId);
 
         log.debug("Получение владельцем userId={} списка своих вещей", userId);
-        return itemStorage.findAllByOwner(userId).stream()
-                .map(mapper::toItemDto)
+        return itemRepository.findAllByOwnerId(userId).stream()
+                .map(item -> enrichWithBookings(item, userId))
+                .sorted(Comparator.comparing(ItemDto::getId))
                 .toList();
     }
 
@@ -81,23 +100,85 @@ public class ItemServiceImpl implements ItemService {
         }
 
         log.debug("Поиск вещей по запросу text={}", text);
-        return itemStorage.searchItems(text).stream()
-                .map(mapper::toItemDto)
+        return itemRepository.search(text).stream()
+                .map(itemMapper::toItemDto)
                 .toList();
     }
 
+    @Override
+    @Transactional
+    public CommentDto addNewComment(Long userId, Long itemId, CommentDto commentDto) {
+        User author = getUserOrThrow(userId);
+        Item item = getItemOrThrow(itemId);
+        LocalDateTime now = LocalDateTime.now();
+
+        validateHasPastBooking(userId, itemId, now);
+
+        Comment comment = commentMapper.toComment(commentDto);
+        comment.setAuthor(author);
+        comment.setItem(item);
+        comment.setCreated(now);
+
+        log.debug("Добавление комментария:{} от автора бронирования:id={} для вещи id={}",
+                comment.getText(), userId, itemId);
+        Comment savedComment = commentRepository.save(comment);
+        return commentMapper.toCommentDto(savedComment);
+    }
+
+    private ItemDto.BookingShortDto toShortBookingDto(Booking booking) {
+        if (booking == null) {
+            return null;
+        }
+        return new ItemDto.BookingShortDto(booking.getId(), booking.getBooker().getId());
+    }
+
+    private ItemDto enrichWithBookings(Item item, Long userId) {
+        ItemDto dto = itemMapper.toItemDto(item);
+
+        List<CommentDto> comments = commentRepository.findAllByItemIdOrderByIdAsc(item.getId()).stream()
+                .map(commentMapper::toCommentDto)
+                .toList();
+
+        dto = dto.toBuilder().comments(comments).build();
+
+        if (item.getOwner().getId().equals(userId)) {
+            log.debug("Обогащение запроса для владельца id={} вещи id{} " +
+                            "информацией о последним и следующим бронированием",
+                    userId, item.getId());
+            LocalDateTime now = LocalDateTime.now();
+
+            Booking last = bookingRepository.findAllByItemIdAndStatusAndStartBeforeOrderByStartDesc(
+                            item.getId(), BookingStatus.APPROVED, now)
+                    .stream()
+                    .findFirst()
+                    .orElse(null);
+
+            Booking next = bookingRepository.findAllByItemIdAndStatusAndStartAfterOrderByStartAsc(
+                            item.getId(), BookingStatus.APPROVED, now)
+                    .stream()
+                    .findFirst()
+                    .orElse(null);
+
+            dto = dto.toBuilder()
+                    .lastBooking(toShortBookingDto(last))
+                    .nextBooking(toShortBookingDto(next))
+                    .build();
+        }
+        return dto;
+    }
+
     private User getUserOrThrow(Long userId) {
-        return userStorage.findById(userId).orElseThrow(() ->
+        return userRepository.findById(userId).orElseThrow(() ->
                 new NotFoundException("Пользователь с id = " + userId + " не найден"));
     }
 
     private Item getItemOrThrow(Long itemId) {
-        return itemStorage.findById(itemId).orElseThrow(() ->
+        return itemRepository.findById(itemId).orElseThrow(() ->
                 new NotFoundException("Вещь с id = " + itemId + " не найдена"));
     }
 
     private void validateUserId(Long userId) {
-        if (!userStorage.existsById(userId))
+        if (!userRepository.existsById(userId))
             throw new NotFoundException("Пользователь с id = " + userId + " не найден");
     }
 
@@ -116,5 +197,13 @@ public class ItemServiceImpl implements ItemService {
     private void validateOwner(Long ownerId, Long userId) {
         if (!ownerId.equals(userId))
             throw new NotFoundException("Пользователь c id = " + userId + " не является владельцем");
+    }
+
+    private void validateHasPastBooking(Long userId, Long itemId, LocalDateTime now) {
+        if (!bookingRepository.existsByItemIdAndBookerIdAndStatusAndEndBefore(
+                itemId, userId, BookingStatus.APPROVED, now)) {
+            throw new ConditionsNotMetException("Оставить отзыв может только пользователь," +
+                    " который арендовал эту вещь, и чья аренда уже завершилась");
+        }
     }
 }

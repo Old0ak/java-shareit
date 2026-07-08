@@ -17,38 +17,48 @@ public class UserController {
 
     private final UserService userService;
 
+    // создание нового пользователя
     @PostMapping
     public UserDto create(@Valid @RequestBody UserDto userDto) {
+        log.info("Получен запрос на создание нового пользователя");
         UserDto createdUser = userService.create(userDto);
-        log.info("Добавлен пользователь: id={}, email={}", createdUser.getId(), createdUser.getEmail());
+        log.info("Успешно создан пользователь: id={}, email={}", createdUser.getId(), createdUser.getEmail());
         return createdUser;
     }
 
+    // удаление пользователя
     @DeleteMapping("/{userId}")
     public void delete(@PathVariable Long userId) {
+        log.info("Получен запрос на удаление пользователя: id={}", userId);
         userService.delete(userId);
-        log.info("Удалён пользователь: id={}", userId);
+        log.info("Успешно удалён пользователь: id={}", userId);
     }
 
+    // обновление данных пользователя
     @PatchMapping("/{userId}")
     public UserDto update(@PathVariable Long userId,
                           @RequestBody UserDto userDto) {
+        log.info("Получен запрос на обновление данных пользователя: id={}", userId);
         UserDto updatedUser = userService.update(userId, userDto);
-        log.info("Обновлены данные пользователя: id={}", updatedUser.getId());
+        log.info("Успешно обновлены данные пользователя: id={}", updatedUser.getId());
         return updatedUser;
     }
 
+    // получение списка всех пользователей
     @GetMapping
     public List<UserDto> findAll() {
+        log.info("Получен запрос на получение списка всех пользователей");
         List<UserDto> users = userService.findAll();
-        log.info("Получен список всех пользователей");
+        log.info("Успешно получен список всех пользователей");
         return users;
     }
 
+    // получение пользователя по id
     @GetMapping("/{userId}")
     public UserDto getUser(@PathVariable Long userId) {
+        log.info("Получен запрос на получение пользователя: id={}", userId);
         UserDto userDto = userService.findById(userId);
-        log.info("Получен пользователь: id={}", userId);
+        log.info("Успешно получен пользователь: id={}", userId);
         return userDto;
     }
 }
