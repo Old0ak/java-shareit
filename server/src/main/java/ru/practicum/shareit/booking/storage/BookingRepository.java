@@ -65,13 +65,13 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     // МЕТОДЫ ПОИСКА БРОНИРОВАНИЙ ДЛЯ ВЕЩЕЙ (item) - поиск по item.id
     // ==============================================================
 
-    // поиск APPROVED бронирований для вещи, которы начались в прошлом или идут сейчас (для lastBooking)
+    // поиск APPROVED бронирований для вещи, которые начались в прошлом или идут сейчас (для lastBooking)
     List<Booking> findAllByItemIdAndStatusAndStartBeforeOrderByStartDesc(
             Long itemId,
             BookingStatus status,
             LocalDateTime now);
 
-    // поиск APPROVED бронирований для вещи, которы начнутся в будущем (для nextBooking)
+    // поиск APPROVED бронирований для вещи, которые начнутся в будущем (для nextBooking)
     List<Booking> findAllByItemIdAndStatusAndStartAfterOrderByStartAsc(
             Long itemId,
             BookingStatus status,

@@ -87,7 +87,8 @@ class ItemRequestServiceImplTest {
     void create_WhenUserDoesNotExist_ShouldThrowNotFound() {
         Mockito.when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> itemRequestService.create(999L, new ItemRequestPostDto("Текст")));
+        assertThrows(NotFoundException.class, () -> itemRequestService.create(999L,
+                new ItemRequestPostDto("Текст")));
     }
 
     @Test
@@ -129,6 +130,14 @@ class ItemRequestServiceImplTest {
 
         assertNotNull(result);
         assertEquals(1L, result.getId());
+    }
+
+    @Test
+    void findRequestById_WhenRequestDoesNotExist_ShouldThrowNotFound() {
+        Mockito.when(userRepository.existsById(1L)).thenReturn(true);
+        Mockito.when(itemRequestRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> itemRequestService.findRequestById(1L, 999L));
     }
 
 }
