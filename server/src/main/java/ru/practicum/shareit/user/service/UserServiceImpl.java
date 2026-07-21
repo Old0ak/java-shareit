@@ -60,7 +60,7 @@ public class UserServiceImpl implements UserService {
         }
 
         log.debug("Обновление данных пользователя: id={}", user.getId());
-        User updatedUser = userRepository.save(user);
+        User updatedUser = userRepository.saveAndFlush(user);
         return mapper.toUserDto(updatedUser);
     }
 

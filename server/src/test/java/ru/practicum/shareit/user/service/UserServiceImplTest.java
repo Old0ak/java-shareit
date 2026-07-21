@@ -70,7 +70,7 @@ class UserServiceImplTest {
     @Test
     void update_WhenUserExists_ShouldUpdateFields() {
         Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        Mockito.when(userRepository.save(any())).thenReturn(user);
+        Mockito.when(userRepository.saveAndFlush(any(User.class))).thenReturn(user);
         Mockito.when(userMapper.toUserDto(any(User.class))).thenReturn(userDto);
 
         UserDto updateDto = UserDto.builder().name("NewName").build();
